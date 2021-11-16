@@ -1,20 +1,7 @@
-"""
-Simple Bot to reply to Telegram messages.
-First, a few handler functions are defined. Then, those functions are passed to
-the Dispatcher and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-Usage:
-Basic Echobot example, repeats messages.
-Press Ctrl-C on the command line or send a signal to the process to stop the
-bot.
-"""
-
+import requests
 import logging
-import pandas as pd
-from telegram import Update, ForceReply
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
-df = pd.read_excel('Food List.xlsx')
 
 # Enable logging
 logging.basicConfig(
@@ -26,34 +13,48 @@ logger = logging.getLogger(__name__)
 
 # Define a few command handlers. These usually take the two arguments update and
 # context.
+
 def start(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /start is issued."""
+    """Echo the user message."""
     user = update.effective_user
     update.message.reply_markdown_v2(
-        fr'Hi {user.mention_markdown_v2()}\!',
-        reply_markup=ForceReply(selective=True),
+        fr'Hi {user.mention_markdown_v2()}\! Send me a command to get started\!',
     )
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    update.message.reply_text('/order - Order dishes\n/menu - See menu\n')
 
 
 def order_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /order is issued."""
     update.message.reply_text('What would you like to order?')
 
+    orderInfo = {
+        "data":
+            {
+                "Item": "29",
+                "Delivery": "Yes",
+                "Telegram ID": "agb2k"
+            }
+    }
+
+    if 14 <= int(orderInfo["data"]["Item"]) <= 32:
+        sheetId = 20527
+
+    r = requests.post(f"https://api.apispreadsheets.com/data/{sheetId}/", headers={}, json=orderInfo)
+
+    if r.status_code == 201:
+        update.message.reply_text('Order successful!')
+    else:
+        update.message.reply_text("ERROR!")
+
 
 def menu_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /menu is issued."""
-    update.message.reply_text(f'Here\'s your menu!:\n{df.head()}')
-    print(df.head())
-
-
-def echo(update: Update, context: CallbackContext) -> None:
-    """Echo the user message."""
-    update.message.reply_text(update.message.text)
+    context.bot.sendDocument(update.effective_chat.id, document=open("FreeLoadersMenu.pdf", 'rb'),
+                             caption=f'Here\'s our menu!')
 
 
 def main() -> None:
@@ -65,13 +66,12 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
-    dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("order", order_command))
     dispatcher.add_handler(CommandHandler("menu", menu_command))
 
     # on non command i.e message - echo the message on Telegram
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, start))
 
     # Start the Bot
     updater.start_polling()
