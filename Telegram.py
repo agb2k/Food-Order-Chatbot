@@ -1,3 +1,4 @@
+# Importing the relevent libraries
 import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -10,10 +11,13 @@ logger = logging.getLogger(__name__)
 
 # Checks if connection to Google Sheets API is possible
 try:
+    # Connecting to google sheets api
     serviceAccount = gspread.service_account(filename="service_account.json")
 
+    # Connecting to google sheet
     sheet = serviceAccount.open("Orders")
 
+    # Selecting worksheets
     malaySheet = sheet.worksheet("Malay")
     mamakSheet = sheet.worksheet("Mamak")
     beverageSheet = sheet.worksheet("Beverage")
@@ -22,6 +26,7 @@ try:
     commentSheet = sheet.worksheet("Comments")
 
     print(f"Successfully connected to {sheet.title} Google Sheets")
+#     Error handling
 except ConnectionError:
     print("ERROR: Google Sheets Connection Error")
 
@@ -55,8 +60,10 @@ def contact_command(update: Update, context: CallbackContext) -> None:
 
 # Bot sends a message when the command /comment is issued
 def comment_command(update: Update, context: CallbackContext) -> None:
+    # Turns messages into string
     comment = str(' '.join(context.args))
 
+    # /comment command logic to add to google sheets
     if comment:
         try:
             commentSheet.append_row([comment])
@@ -72,15 +79,20 @@ def comment_command(update: Update, context: CallbackContext) -> None:
 
 # Bot sends a message when the command /order is issued
 def order_command(update: Update, context: CallbackContext) -> None:
+    # Telegram user
     user = update.effective_user.username
 
+    # Adds the corresponding detail to the sheets
+    # Takes place if /order xx xx is entered
     try:
         item = context.args[0]
         room = context.args[1]
 
+        # Array to
         orderInfo = [int(item), room, user, str(datetime.now().strftime('%H:%M:%S')),
                      str(datetime.now().strftime('%d/%m/%y'))]
 
+        # Selecting which sheet to add the details into
         if 1 <= int(item) <= 13:
             malaySheet.append_row(orderInfo)
         elif 14 <= int(item) <= 32:
@@ -92,6 +104,7 @@ def order_command(update: Update, context: CallbackContext) -> None:
         elif 63 <= int(item) <= 87:
             japaneseSheet.append_row(orderInfo)
 
+        # Error handling
         if 1 > int(item) > 87:
             update.message.reply_text("Incorrect Order Number! Please Try Again")
         else:
@@ -100,7 +113,7 @@ def order_command(update: Update, context: CallbackContext) -> None:
                 text=f"Order successful! Item No. {item} will be sent to {room} for {user}"
             )
 
-
+    #Takes place if just /order is entered
     except:
         update.message.reply_text(
             f'What would you like to order?\nUse /order [Order ID] [Delivery(Room No.)] to make an order\neg. /order '
