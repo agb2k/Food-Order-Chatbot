@@ -1,54 +1,90 @@
-import requests
 import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from datetime import datetime
+import gspread
 
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-
+# Logging for potential error handling
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+sa = gspread.service_account(filename="service_account.json")
 
-# Define a few command handlers. These usually take the two arguments update and
-# context.
+try:
+    sheet = sa.open("Orders")
+
+    malaySheet = sheet.worksheet("Malay")
+    mamakSheet = sheet.worksheet("Mamak")
+    beverageSheet = sheet.worksheet("Beverage")
+    koreanSheet = sheet.worksheet("Korean")
+    japaneseSheet = sheet.worksheet("Japanese")
+
+    print(f"Successfully connected to {sheet.title} Google Sheets")
+except ConnectionError:
+    print("ERROR: Google Sheets Connection Error")
+
 
 def start(update: Update, context: CallbackContext) -> None:
-    """Echo the user message."""
+    """The default message that takes place when user sends a message"""
     user = update.effective_user
     update.message.reply_markdown_v2(
-        fr'Hi {user.mention_markdown_v2()}\! Send me a command to get started\!',
+        fr'Hi {user.mention_markdown_v2()}\! Send me a command to get started\! Use /help to check them out\.',
     )
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('/order - Order dishes\n/menu - See menu\n')
+    update.message.reply_text('List of commands:\n/order - Order dishes\n/menu - See menu\n')
 
 
 def order_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /order is issued."""
-    update.message.reply_text('What would you like to order?')
+    user = update.effective_user.username
 
-    orderInfo = {
-        "data":
-            {
-                "Item": "29",
-                "Delivery": "Yes",
-                "Telegram ID": "agb2k"
-            }
-    }
+    try:
+        item = context.args[0]
+        room = context.args[1]
 
-    if 14 <= int(orderInfo["data"]["Item"]) <= 32:
-        sheetId = 20527
+        orderInfo = [int(item), room, user, str(datetime.now().strftime('%H:%M:%S')),
+                     str(datetime.now().strftime('%d/%m/%y'))]
 
-    r = requests.post(f"https://api.apispreadsheets.com/data/{sheetId}/", headers={}, json=orderInfo)
+        if 1 <= int(item) <= 13:
+            malaySheet.append_row(orderInfo)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Order successful! Item No. {item} will be sent to {room} for {user} from the Malay Stall"
+            )
+        elif 14 <= int(item) <= 32:
+            mamakSheet.append_row(orderInfo)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Order successful! Item No. {item} will be sent to {room} for {user} from the Mamak Stall"
+            )
+        elif 33 <= int(item) <= 47:
+            beverageSheet.append_row(orderInfo)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Order successful! Item No. {item} will be sent to {room} for {user} from the Beverage Stall"
+            )
+        elif 48 <= int(item) <= 62:
+            koreanSheet.append_row(orderInfo)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Order successful! Item No. {item} will be sent to {room} for {user} from the Korean Stall"
+            )
+        elif 63 <= int(item) <= 87:
+            japaneseSheet.append_row(orderInfo)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Order successful! Item No. {item} will be sent to {room} for {user} from the Japanese Stall"
+            )
+        else:
+            update.message.reply_text("Incorrect Order Number! Please Try Again")
 
-    if r.status_code == 201:
-        update.message.reply_text('Order successful!')
-    else:
-        update.message.reply_text("ERROR!")
+    except:
+        update.message.reply_text(
+            f'What would you like to order?\nUse /order [Order ID] [Delivery(Room No.)] to make an order\neg. /order '
+            f'29 J3B10')
 
 
 def menu_command(update: Update, context: CallbackContext) -> None:
@@ -70,15 +106,11 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("order", order_command))
     dispatcher.add_handler(CommandHandler("menu", menu_command))
 
-    # on non command i.e message - echo the message on Telegram
+    # on non-commands
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, start))
 
     # Start the Bot
     updater.start_polling()
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
