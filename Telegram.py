@@ -1,9 +1,10 @@
-# Importing the relevent libraries
+# Importing the relevant libraries
 import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from datetime import datetime
 import gspread
+import os
 
 # Logging for potential error handling
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Checks if connection to Google Sheets API is possible
 try:
     # Connecting to google sheets api
-    serviceAccount = gspread.service_account(filename="service_account.json")
+    serviceAccount = gspread.service_account(filename="google-credentials.json")
 
     # Connecting to google sheet
     sheet = serviceAccount.open("Orders")
@@ -124,7 +125,7 @@ def order_command(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     # Create the Updater and pass it your bot's token.
     # This should be a secret but it's left open for demo/testing purposes
-    updater = Updater("2120331172:AAFbAfLx8V-deJIcyIfd_OJ6NbM1pBqrRAI")
+    updater = Updater(os.environ.get('Orders_Bot_Token'))
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher

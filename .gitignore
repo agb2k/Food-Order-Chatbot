@@ -1,2 +1,4 @@
 /venv/
 /venv2/
+!/service_account.json
+/.idea/
